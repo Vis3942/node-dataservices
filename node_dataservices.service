@@ -1,0 +1,16 @@
+[Unit]
+Description=PLAN Data Services (Node App)
+
+
+[Service]
+WorkingDirectory=/home/debian/node_dataservices
+Restart=always
+RestartSec=5
+Environment=SYSTEMD_LOG_LEVEL=debug
+ExecStart=/usr/bin/node /home/debian/node_dataservices/dc_client_discover.js
+User=debian
+
+[Install]
+WantedBy=multi-user.target
+
+

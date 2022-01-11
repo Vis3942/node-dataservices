@@ -1,0 +1,14 @@
+{
+    "udp":
+    {
+        "port": 41234
+    },
+    "PipeConnectionName": "PLSDCConnection",
+    "PipeConnectionTimeoutSecs": 15,
+    "StatusPipeConnectionName": "DCStatusPipe",
+    "StatusAppTrueState": "DCDS-WWW-True",
+    "StatusAppFalseState": "DCDS-WWW-False",
+    "StatusPingIntervalSeconds": 2,
+    "LogFileName": "ds_app_log",
+    "LogLevel": "information"
+}
