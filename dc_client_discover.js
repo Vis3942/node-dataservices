@@ -6,7 +6,10 @@ var udpSocket = dgram.createSocket("udp4");
 const process =require('process');
 const { send } = require("process");
 const fs = require("fs");
+const { RotateFilesByDate }  = require('./RotateFiles');
+const writeToCsv = require('./WriteToCsv');
 var settings = null;
+var node_times = {};
 
 let settings_pathfile = '';
 if (fs.existsSync('/home/debian/config/node_dataservices/dc_client_settings.json')) {
@@ -60,6 +63,28 @@ function connectEventHandler() {
   retrying = false;
 }
 
+function WriteToCsv(node_data) {
+  writeToCsv.WriteToCsvFile(node_data);
+  let tmpDate = new Date();
+  let performRoateCheck = false;
+  if (node_times[node_data.Name] === undefined) {
+      node_times[node_data.Name] = tmpDate;
+      // app just started; good to check file rotation
+      performRoateCheck = true;
+  } 
+  else {
+      if (node_times[node_data.Name].getUTCDate() !== tmpDate.getUTCDate()) {
+          node_times[node_data.Name] = tmpDate;
+          performRoateCheck = true;
+      }
+  } 
+  if (performRoateCheck) {
+      RotateFilesByDate(settings.numberOfFilesPerNode, 
+          node_data.Name + "_" + settings.logPrefix, 
+          "csv");
+
+  }}
+
 function dataEventHandler(data) {
   if (got_json) {
     recv_data = data;
@@ -88,6 +113,7 @@ function dataEventHandler(data) {
       else {
         logger.info("Got data for UI (Not sent) " + sendObj.Data.length + " items from " + sendObj.Name);
       }
+      WriteToCsv(sendObj);
     }
   } 
   // else {

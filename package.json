@@ -1,6 +1,6 @@
 {
-  "name": "Dataservices using Nodejs",
-  "version": "1.0.0",
+  "name": "dataservices-using-nodejs",
+  "version": "1.1.1",
   "description": "Dataservices in nodejs send receive data over socket-io",
   "main": "dc_client_discover.js",
   "scripts": {
@@ -15,6 +15,7 @@
   "license": "ISC",
   "dependencies": {
     "moment": "^2.29.1",
+    "n-readlines": "^1.0.1",
     "socket.io-client": "^4.4.1",
     "winston": "^3.4.0",
     "winston-daily-rotate-file": "^4.5.5"

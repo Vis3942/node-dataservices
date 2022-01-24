@@ -10,5 +10,8 @@
     "StatusAppFalseState": "DCDS-WWW-False",
     "StatusPingIntervalSeconds": 2,
     "LogFileName": "ds_app_log",
-    "LogLevel": "information"
+    "LogLevel": "information",
+    "logLocation": "/media/card/dblite/",
+    "logPrefix": "data",
+    "numberOfFilesPerNode": 7
 }
