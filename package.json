@@ -1,6 +1,6 @@
 {
   "name": "dataservices-using-nodejs",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Dataservices in nodejs send receive data over socket-io",
   "main": "dc_client_discover.js",
   "scripts": {

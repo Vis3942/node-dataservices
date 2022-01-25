@@ -13,5 +13,5 @@
     "LogLevel": "information",
     "logLocation": "/media/card/dblite/",
     "logPrefix": "data",
-    "numberOfFilesPerNode": 7
+    "numberOfFilesPerNode": 31
 }
