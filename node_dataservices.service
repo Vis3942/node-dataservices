@@ -3,7 +3,7 @@ Description=PLAN Data Services (Node App)
 
 
 [Service]
-WorkingDirectory=/home/debian/node_dataservices
+WorkingDirectory=/home/debian/node_dataservices/current
 Restart=always
 RestartSec=5
 Environment=SYSTEMD_LOG_LEVEL=debug
