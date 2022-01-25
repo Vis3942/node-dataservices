@@ -7,7 +7,7 @@ WorkingDirectory=/home/debian/node_dataservices/current
 Restart=always
 RestartSec=5
 Environment=SYSTEMD_LOG_LEVEL=debug
-ExecStart=/usr/bin/node /home/debian/node_dataservices/dc_client_discover.js
+ExecStart=/usr/bin/node /home/debian/node_dataservices/current/dc_client_discover.js
 User=debian
 
 [Install]
