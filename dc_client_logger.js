@@ -21,7 +21,7 @@ catch (err) {
 
 module.exports = createLogger({
     format: format.combine(
-        format.timestamp({ format: "DD/MM/YYYY HH:mm:ss" }),
+        format.timestamp({ format: "MM/DD/YYYY HH:mm:ss" }),
         format.align(),
         format.printf((i) => `${i.level}: ${[i.timestamp]}: ${i.message}`)
     ),

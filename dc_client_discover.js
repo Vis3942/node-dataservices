@@ -10,6 +10,7 @@ const { RotateFilesByDate }  = require('./RotateFiles');
 const writeToCsv = require('./WriteToCsv');
 var settings = null;
 var node_times = {};
+const reg_pat = /\{([\s\w]*)"Items":/gm;
 
 let settings_pathfile = '';
 if (fs.existsSync('/home/debian/config/node_dataservices/dc_client_settings.json')) {
@@ -83,43 +84,144 @@ function WriteToCsv(node_data) {
           node_data.Name + "_" + settings.logPrefix, 
           "csv");
 
-  }}
+  } 
+}
+
+
+function findValidJson(str) {
+  let matches_idx = [];
+  let done_sarching = false;
+  while (!done_sarching) {
+    let tmp_match = reg_pat.exec(str);
+    if (tmp_match !== null) {
+      matches_idx.push(tmp_match.index)
+    }
+    else 
+    {
+      done_sarching = true;
+    }
+  }
+  // let matches = str.matchAll(reg_pat);
+  // let match_arr = Array.from(matches);
+  let close_brac_index = -1;
+  let new_start_index = -1;
+  var json_idx = [];
+  matches_idx.forEach(function (index) {
+    close_brac_index = findValidClosingBracket(str, index);
+    //console.log("start index " + index);
+    //console.log(str[index]);
+    //console.log("close brac index " + close_brac_index);
+    if (close_brac_index !== -1) {
+      ////console.log(str.slice(index, close_brac_index+1));
+      //console.log(JSON.parse(str.slice(index, close_brac_index+1)));
+      json_idx.push(index);
+      json_idx.push(close_brac_index);
+    }
+    else {
+      new_start_index = index;
+    }
+  });
+  // console.log("remainder: \n" + str.slice(new_start_index));
+  return json_idx;
+}
+
+function findValidClosingBracket(str, pos) {
+  if (str[pos] !== '{') {
+    logger.info("did not find open bracket at " + pos);
+    return -1;
+    //throw new Error('The position must contain an opening bracket');
+  }
+  let level = 1;
+  for (let index = pos + 1; index < str.length; index++) {
+    if (str[index] === '{') {
+      level++;
+      //console.log("index : " + index + " level" + level);
+    } else if (str[index] === '}') {
+      level--;
+      //console.log("index : " + index + " level" + level);
+    }
+    if (level === 0) {
+      return index;
+    }
+  }
+  return -1;
+}
+  
+function sendToUI(obj) {
+  const sendObj = formatDataForUI(obj);
+  if (sendObj !== null)
+  {
+    if ( (ui_connected) && (socket !== null) ) {
+      socket.emit('node_data', sendObj);
+      logger.info("Sending to ui " + sendObj.Data.length + " items from " + sendObj.Name);
+    } 
+    else {
+      logger.info("Got data for UI (Not sent) " + sendObj.Data.length + " items from " + sendObj.Name);
+    }
+    WriteToCsv(sendObj);
+  }
+}
 
 function dataEventHandler(data) {
-  if (got_json) {
-    recv_data = data;
-    //console.log("creating recv_data with ");
-    //console.log(recv_data);
-    //console.log("-------------");
-  } else {
-    //console.log("appending data");
-    recv_data = recv_data + data;
-    //console.log(recv_data);
-    //console.log(" xxxxxxxxxxxxxxxxx    ");
-  }
-  got_json = testJSON(recv_data);
-  //console.log("got_json = " + got_json);
-  if (got_json) {
-    const obj = JSON.parse(recv_data);
-    const sendObj = formatDataForUI(obj);
-    //console.log(sendObj);
-    recv_data = '';
-    if (sendObj !== null)
-    {
-      if ( (ui_connected) && (socket !== null) ) {
-        socket.emit('node_data', sendObj);
-        logger.info("Sending to ui " + sendObj.Data.length + " items from " + sendObj.Name);
-      } 
-      else {
-        logger.info("Got data for UI (Not sent) " + sendObj.Data.length + " items from " + sendObj.Name);
-      }
-      WriteToCsv(sendObj);
+  recv_data = recv_data + data;
+  logger.info("data len : " + recv_data.length);
+  json_beg_end_idx = findValidJson(recv_data);
+  if ( (json_beg_end_idx.length > 0) && (json_beg_end_idx.length % 2 === 0) ) {
+    for (ii=0; ii < json_beg_end_idx.length; ii = ii + 2) {
+      //console.log("json object [" + json_beg_end_idx[ii] + "] to [" + json_beg_end_idx[ii+1] + "]");
+      const obj = JSON.parse(recv_data.slice(json_beg_end_idx[ii], json_beg_end_idx[ii+1] + 1));
+      sendToUI(obj);
     }
-  } 
-  // else {
-  //   console.log(recv_data);
-  // }
+    // debug only
+    //console.log("Remainder:");
+    let last_idx = json_beg_end_idx.pop() + 1; // removes the last element to a variable
+    recv_data = recv_data.slice(last_idx);
+  }
+  else 
+  {
+    if (json_beg_end_idx.length % 2 !== 0) {
+      logger.log("Invalid index array returned from parsing recvd data.");
+      logger.log(json_beg_end_idx);
+    }
+  }
 }
+
+
+// function dataEventHandler(data) {
+//   if (got_json) {
+//     recv_data = data;
+//     //console.log("creating recv_data with ");
+//     //console.log(recv_data);
+//     //console.log("-------------");
+//   } else {
+//     //console.log("appending data");
+//     recv_data = recv_data + data;
+//     //console.log(recv_data);
+//     //console.log(" xxxxxxxxxxxxxxxxx    ");
+//   }
+//   got_json = testJSON(recv_data);
+//   //console.log("got_json = " + got_json);
+//   if (got_json) {
+//     const obj = JSON.parse(recv_data);
+//     const sendObj = formatDataForUI(obj);
+//     //console.log(sendObj);
+//     recv_data = '';
+//     if (sendObj !== null)
+//     {
+//       if ( (ui_connected) && (socket !== null) ) {
+//         socket.emit('node_data', sendObj);
+//         logger.info("Sending to ui " + sendObj.Data.length + " items from " + sendObj.Name);
+//       } 
+//       else {
+//         logger.info("Got data for UI (Not sent) " + sendObj.Data.length + " items from " + sendObj.Name);
+//       }
+//       WriteToCsv(sendObj);
+//     }
+//   } 
+//   // else {
+//   //   console.log(recv_data);
+//   // }
+// }
 
 function errorEventHandler(err) {
   logger.error(err);
@@ -146,17 +248,17 @@ centralMasterPipeSocket.on('close', closeEventHandler);
 
 var ui_connected = false;
 
-function testJSON(text) {
-  if (typeof text !== "string") {
-    return false;
-  }
-  try {
-    JSON.parse(text);
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
+// function testJSON(text) {
+//   if (typeof text !== "string") {
+//     return false;
+//   }
+//   try {
+//     JSON.parse(text);
+//     return true;
+//   } catch (error) {
+//     return false;
+//   }
+// }
 
 function formatDataForUI(dataObj) {
   // data recv as ["Items": [ {NodeName: xxxx, UUID: xxxx, Data[]},
