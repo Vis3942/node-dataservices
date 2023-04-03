@@ -12,6 +12,9 @@ var settings = null;
 var node_times = {};
 const reg_pat = /\{([\s\w]*)"Items":/gm;
 
+var pending_get_cmds = []
+var pending_ui_cmds = []
+
 let settings_pathfile = '';
 if (fs.existsSync('/home/debian/config/node_dataservices/dc_client_settings.json')) {
   settings_pathfile = '/home/debian/config/node_dataservices/dc_client_settings.json'; 
@@ -31,6 +34,31 @@ catch (err) {
 
 const logger = require('./dc_client_logger')
 const { establishConnection, endConnection, setDataAppState } = require('./dc_client_pipestatus');
+
+function addUICommandsToPendingList(cmds) {
+  // add command to pending_ui_cmds, but delete any previous commands with the same variable
+  // remove duplicates
+  tmp_list = [];
+  for (let ii=0; ii++; ii < pending_ui_cmds.length) {
+    tobj = pending_ui_cmds[ii];
+    if ( (tobj.Node === cmds.Node) && (tobj.UUID === cmds.UUID) ) {
+      for (let jj=cmds.Commands.length - 1; jj--; jj < 0) {
+        // assumpiton: the Commands array will have unique Name for the command, no duplicates
+        let tmp_idx = tobj.Commands.findIndex(x => x.Name === cmds.Commands[ii].Name);
+        if (tmp_idx >= 0) {
+          tobj.Commands.splice(tmp_idx, 1);
+        }
+      }
+      if (tobj.Commands.length > 0) {
+        tmp_list.push(tobj);
+      }
+    }
+    else {
+      tmp_list.push(tobj);
+    }
+  }
+  pending_ui_cmds = tmp_list;
+}
 
 // Using a single function to handle multiple signals
 function handle(signal) {
@@ -61,8 +89,23 @@ function makeCentralMasterConnection() {
 function connectEventHandler() {
   logger.info("connected to CentralMaster socket");
   //console.log("connected to CentralMaster socket");
+  dc_connected = true;
   retrying = false;
+  if (pending_get_cmds.length > 0) {
+    for (let ii=0; ii < pending_get_cmds.length; ii++)
+    {
+      centralMasterPipeSocket.write('get_cmds:' + pending_get_cmds[ii] + "\n");
+    }
+    pending_get_cmds = [];
+  }
 }
+
+function disconnectEventHandler() {
+  logger.info("disconnected from CentralMaster socket");
+  //console.log("connected to CentralMaster socket");
+  dc_connected = false;
+}
+
 
 function WriteToCsv(node_data) {
   writeToCsv.WriteToCsvFile(node_data);
@@ -90,15 +133,15 @@ function WriteToCsv(node_data) {
 
 function findValidJson(str) {
   let matches_idx = [];
-  let done_sarching = false;
-  while (!done_sarching) {
+  let done_searching = false;
+  while (!done_searching) {
     let tmp_match = reg_pat.exec(str);
     if (tmp_match !== null) {
       matches_idx.push(tmp_match.index)
     }
     else 
     {
-      done_sarching = true;
+      done_searching = true;
     }
   }
   // let matches = str.matchAll(reg_pat);
@@ -152,8 +195,13 @@ function sendToUI(obj) {
   if (sendObj !== null)
   {
     if ( (ui_connected) && (socket !== null) ) {
-      socket.emit('node_data', sendObj);
-      logger.info("Sending to ui " + sendObj.Data.length + " items from " + sendObj.Name);
+      if (sendObj.Commands !== undefined) {
+        socket.emit('node_cmds', sendObj);
+        logger.info("Sending to ui " + sendObj.Commands[0].NodeName + " items from " + sendObj.Name);
+      } else {
+        socket.emit('node_data', sendObj);
+        logger.info("Sending to ui " + sendObj.Data.length + " items from " + sendObj.Name);
+      }
     } 
     else {
       logger.info("Got data for UI (Not sent) " + sendObj.Data.length + " items from " + sendObj.Name);
@@ -226,6 +274,7 @@ function dataEventHandler(data) {
 function errorEventHandler(err) {
   logger.error(err);
   //console.log("reconnecting... to cm pipe");
+  dc_connected = false;
 }
 
 function closeEventHandler() {
@@ -234,6 +283,7 @@ function closeEventHandler() {
     logger.info('reconnecting... to central master');
   }
   setTimeout(makeCentralMasterConnection, settings.PipeConnectionTimeoutSecs*1000);
+  dc_connected = false;
 }
 
 let centralMasterPipeSocket = net.Socket();
@@ -241,12 +291,14 @@ centralMasterPipeSocket.on('connect', connectEventHandler);
 centralMasterPipeSocket.on('data', dataEventHandler);
 centralMasterPipeSocket.on('error', errorEventHandler);
 centralMasterPipeSocket.on('close', closeEventHandler);
+centralMasterPipeSocket.on('disconnect', disconnectEventHandler);
 
 // var centralMasterPipeClient = net.connect("/tmp/CoreFxPipe_PLSDCConnection", function () {
 //   console.log("connected to server");
 // });
 
 var ui_connected = false;
+var dc_connected = false;
 
 // function testJSON(text) {
 //   if (typeof text !== "string") {
@@ -274,20 +326,40 @@ function formatDataForUI(dataObj) {
   //     {Name: <var name>, Value: <value of var>, Timestamp: <time str>, Event: <indicator>}
   //   ]
   // }
-  if (dataObj.Items.length > 0) {
-    const sendObj = {}
-    sendObj.Name = dataObj.Items[0].NodeName;
-    const tarr = []
-    for (let item of dataObj.Items) {
-      for (let arrayItem of item.Data) {
-        tarr.push(arrayItem);
+
+  // for set of commands, json receiveed as 
+  // data recv as ["Commands": [ {NodeName: xxxx, NodeCommands: [{UUID: xxxx, set_cmds[] }, UUID: xxxx, set_cmds: [] ] },
+  //                             {NodeName: xxxx, NodeCommands: [{UUID: xxxx, set_cmds[] }, UUID: xxxx, set_cmds: [] ] },
+  //                             {NodeName: xxxx, NodeCommands: [{UUID: xxxx, set_cmds[] }, UUID: xxxx, set_cmds: [] ] }]
+  //   where set_cmds element 
+  //   { Name: "xxxx", description: "xxxx",  type: "xxxx", value: "xxxx", min: "", max: "" }
+  //  this data is sent as is to the UI
+
+  if (dataObj.Items !== undefined) {
+    if (dataObj.Items.length > 0) {
+      const sendObj = {}
+      sendObj.Name = dataObj.Items[0].NodeName;
+      const tarr = []
+      for (let item of dataObj.Items) {
+        for (let arrayItem of item.Data) {
+          tarr.push(arrayItem);
+        }
       }
+      sendObj.Data = tarr;
+      return sendObj;
+    } else {
+      logger.error("No data to format, array length is 0")
+      return null;
     }
-    sendObj.Data = tarr;
-    return sendObj;
-  } else {
-    logger.error("No data to format, array length is 0")
-    return null;
+  }
+  else if (dataObj.Commands !== undefined)
+  {
+    if (dataObj.Commands.length > 0) {
+      return dataObj;
+    } else {
+      logger.error("No commands to to send, array length is 0")
+      return null;
+    }
   }
 }
 
@@ -414,8 +486,39 @@ udpSocket.on("message", function (msg, rinfo) {
   });
 
   socket.on("error", (error) => {
-    logger.error(error);
+    logger.info(error);
   });
+
+  socket.on('get_cmds', (nodeName) => {
+    logger.info("received get commands for node " + nodeName);
+    if (dc_connected) {
+      centralMasterPipeSocket.write('get_cmds:' + nodeName + "\n");
+    }
+    else {
+      logger.info("Writing to pending get_cmds list")
+      pending_get_cmds.push(nodeName);
+    }
+  }); 
+
+  socket.on('ui_cmds', (cmds) => {
+    console.log("received cmds from UI ");
+    console.log(cmds);
+    if (dc_connected) {
+      console.log("writing to pipe");
+      centralMasterPipeSocket.write("ui_cmds:" + JSON.stringify(cmds) + "\n");
+    }
+    else {
+      console.log("writing to pending_ui_cmds buffer");
+      addUICommandsToPendingList(cmds);
+      //pending_ui_cmds.push(cmds);
+      if (pending_ui_cmds.length > settings.maxNumberOfPendingData) {
+        pending_ui_cmds = pending_ui_cmds.slice(pending_ui_cmds.length - settings.maxNumberOfPendingData, pending_ui_cmds.length);
+      }
+    }
+
+
+  });
+
 });
 
 udpSocket.on("error", function (err) {

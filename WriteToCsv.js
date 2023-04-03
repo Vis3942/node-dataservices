@@ -66,7 +66,7 @@ function WriteToCsvFile(node_data) {
                 tmparr[kk] = node_data.Data[0].Timestamp;
             }
             else {
-                console.log("Node: " + node_data.Name + " failed to write variable Timestamp to csv file");
+                console.log("Node: " + node_data.Name + "  variable Timestamp to csv file");
                 console.log("hdrs = " + csv_headers[node_data.Name]);
             }
             for (let jj in node_data.Data) {
