@@ -7,8 +7,8 @@ WorkingDirectory=/home/debian/node_dataservices/current
 Restart=always
 RestartSec=5
 Environment=SYSTEMD_LOG_LEVEL=debug
-ExecStart=/usr/bin/node /home/debian/node_dataservices/current/dc_client_discover.js
-User=debian
+ExecStart=/usr/bin/node /home/debian/node_dataservices/current/dc_modbus_server.js
+User=root
 
 [Install]
 WantedBy=multi-user.target

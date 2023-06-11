@@ -1,0 +1,22 @@
+{
+    "nodes": [
+        {
+            "NodeName": "node1",
+            "NodeUUID": "0702f5fc-431f-4402-a683-f4240eeda621",
+            "NodeID": "DB82",
+            "Data": [         
+                "param1", "param2", "param3", "param6"
+            ]
+        },
+        {
+            "NodeName": "node2",
+            "NodeUUID": "413b4096-9585-472e-a96a-5af332877c2c",
+            "NodeID": "DB83",
+            "Data": [         
+                "param1", "param2", "paramx3", "paramx6"
+            ]
+        }
+    ]
+}
+
+
