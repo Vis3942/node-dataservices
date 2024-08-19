@@ -1,4 +1,5 @@
 {
+    "MainAppType": "MqttThingsBoard",
     "udp":
     {
         "port": 41234

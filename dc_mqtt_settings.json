@@ -1,0 +1,16 @@
+{
+    "reconnectPeriod": "15000",
+    "host" : "demo.thingsboard.io",
+    "port" : "1883",
+    "CloudHost": "137.184.86.32",
+    "CloudPort": "1883",
+    "udp_port": 40506,
+    "topic": "v1/devices/me/telemetry",
+    "topic_cmd": "v1/devices/me/rpc/request/",
+    "AccessKeys": [
+        {"nodeId": "NCx_EC1E57",
+        "Key" : "bz337w0reo35lppi991a"}
+    ],
+    "schedulePeriodSecs": 86400
+}
+

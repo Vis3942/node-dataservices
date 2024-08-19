@@ -1,8 +1,8 @@
 {
   "name": "dataservices-using-nodejs",
-  "version": "1.2.5",
-  "description": "Dataservices in nodejs send receive data over socket-io",
-  "main": "dc_client_discover.js",
+  "version": "1.2.8",
+  "description": "Dataservices in nodejs send receive data over mqtt, main app to select based on MainAppType in settings",
+  "main": "dc_main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -18,6 +18,7 @@
     "n-readlines": "^1.0.1",
     "socket.io-client": "^4.4.1",
     "winston": "^3.4.0",
-    "winston-daily-rotate-file": "^4.5.5"
+    "winston-daily-rotate-file": "^4.5.5",
+    "mqtt": "^4.3.7"
   }
 }
